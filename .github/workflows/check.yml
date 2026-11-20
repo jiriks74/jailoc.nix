@@ -1,0 +1,46 @@
+# The planned release-update workflow will open a PR for review; it must never auto-merge.
+
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        # Native builds on both Linux architectures; the flake supports both.
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
+      # Worth caching: the cold build compiles a Linux kernel for libkrunfw.
+      - uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # v15
+      - name: Check formatting
+        if: matrix.runner == 'ubuntu-24.04'
+        run: nix fmt -- --check .
+      - name: Evaluate all systems
+        if: matrix.runner == 'ubuntu-24.04'
+        run: nix flake check --all-systems --no-build
+      - run: nix flake check -L
+      - run: nix run . -- --version
