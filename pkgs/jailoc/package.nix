@@ -6,6 +6,8 @@
   installShellFiles,
   git,
   cacert,
+  coreutils,
+  gnused,
   versionCheckHook,
   go-microvm-runner,
   libkrun,
@@ -14,13 +16,13 @@
 assert lib.assertMsg (libkrun ? init) "jailoc needs jailoc's libkrun from pkgs/libkrun, not nixpkgs' libkrun";
   buildGoModule (finalAttrs: {
     pname = "jailoc";
-    version = "2.7.2";
+    version = "2.8.0";
 
     src = fetchFromGitHub {
       owner = "seznam";
       repo = "jailoc";
       tag = "v${finalAttrs.version}";
-      hash = "sha256-Zb3cLEyAbu0YGBEgQ3f28KMuDFtNbNy6Mi83+pxztp8=";
+      hash = "sha256-Sl4/lz2wFwD2BII38iN8xRHYWB355IFSFYzav2kcHj8=";
     };
 
     vendorHash = "sha256-qqYH+h1S0nZHGqM1kdk0KI3GPSUnQhdEVK52oO7WWd8=";
@@ -28,6 +30,12 @@ assert lib.assertMsg (libkrun ? init) "jailoc needs jailoc's libkrun from pkgs/l
     subPackages = ["cmd/jailoc"];
 
     env.CGO_ENABLED = 0;
+
+    postPatch = ''
+      # The VM test harness resets PATH; keep its stubs before the Nix tools.
+      substituteInPlace internal/vm/init_test.go \
+        --replace-fail 'h.bin + ":/usr/bin:/bin"' 'h.bin + ":${lib.makeBinPath [coreutils gnused]}"'
+    '';
 
     ldflags = [
       "-s"
