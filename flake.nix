@@ -28,6 +28,18 @@
       inherit (self.packages.${system}) jailoc;
     });
 
+    devShells = forAllSystems (system: let
+      pkgs = nixpkgs.legacyPackages.${system};
+    in {
+      default = pkgs.mkShellNoCC {
+        packages = with pkgs; [
+          nix-update
+          alejandra
+          git
+        ];
+      };
+    });
+
     formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.alejandra);
   };
 }
